@@ -1,0 +1,115 @@
+{# Routinen-Kachel. Erwartet `tile` im Kontext – Datenvertrag siehe README.md. #}
+{% url 'routinen:tile' as tile_url %}
+{# Beim Bearbeiten kein Polling, sonst würde der Dialog mitten im Tippen ersetzt #}
+<section class="rt-tile" aria-label="Routinen"
+         {% if not tile.edit %}hx-get="{{ tile_url }}{% if tile.show_all %}?all=1{% endif %}" hx-trigger="every {{ tile.poll_seconds }}s" hx-swap="outerHTML"{% endif %}>
+
+  <header class="rt-head">
+    {# Tippen auf die Titelzeile klappt ein/aus – Zustand in collapse.js #}
+    <h2 class="rt-title">
+      <button type="button" class="rt-toggle" data-collapse="routines" aria-controls="rt-body" aria-expanded="true">
+        <span class="rt-light is-{{ tile.status }}" role="img" aria-label="Status: {{ tile.status_label }}"></span>
+        <span>Routinen</span>
+        <span class="rt-summary">{{ tile.summary }}</span>
+        <svg class="rt-chevron" aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+    </h2>
+  </header>
+
+  <div class="rt-body" id="rt-body">
+  {% if tile.error %}
+    <p class="rt-error">{{ tile.error }}</p>
+
+  {% elif tile.edit %}
+    {% with e=tile.edit %}
+    <form class="rt-form" method="post" action="{% url 'routinen:save' %}"
+          hx-post="{% url 'routinen:save' %}" hx-target="closest .rt-tile" hx-swap="outerHTML">
+      {% csrf_token %}
+      <input type="hidden" name="id" value="{{ e.id }}">
+      {% if tile.show_all %}<input type="hidden" name="all" value="1">{% endif %}
+      <p class="rt-form-title">{{ e.title }}</p>
+
+      <label class="rt-field">
+        <span>Name{% if e.errors.name %} <em class="rt-field-error">– {{ e.errors.name }}</em>{% endif %}</span>
+        <input name="name" value="{{ e.values.name }}" maxlength="80" required autocomplete="off"{% if e.errors.name %} aria-invalid="true"{% endif %}>
+      </label>
+      <div class="rt-pair">
+        <label class="rt-field">
+          <span>Intervall (Tage){% if e.errors.intervall %} <em class="rt-field-error">– {{ e.errors.intervall }}</em>{% endif %}</span>
+          <input type="number" name="intervall" value="{{ e.values.intervall }}" min="1" max="3650" inputmode="numeric" required{% if e.errors.intervall %} aria-invalid="true"{% endif %}>
+        </label>
+        <label class="rt-field">
+          <span>Toleranz (Tage){% if e.errors.toleranz %} <em class="rt-field-error">– {{ e.errors.toleranz }}</em>{% endif %}</span>
+          <input type="number" name="toleranz" value="{{ e.values.toleranz }}" min="0" max="3650" inputmode="numeric" required{% if e.errors.toleranz %} aria-invalid="true"{% endif %}>
+        </label>
+      </div>
+      <label class="rt-field">
+        <span>Zuletzt erledigt{% if e.errors.zuletzt %} <em class="rt-field-error">– {{ e.errors.zuletzt }}</em>{% endif %}</span>
+        <input type="date" name="zuletzt" value="{{ e.values.zuletzt }}" max="{{ tile.today_iso }}"{% if e.errors.zuletzt %} aria-invalid="true"{% endif %}>
+      </label>
+      <p class="rt-hint">{% if e.hint %}{{ e.hint }}{% else %}Fällig nach Intervall, rot nach Intervall + Toleranz.{% endif %}</p>
+
+      <div class="rt-actions">
+        {% if e.id %}
+          {# Liegt im Formular: HTMX schickt dessen Felder (CSRF-Token) mit #}
+          <button type="button" class="rt-delete" hx-post="{% url 'routinen:delete' e.id %}"
+                  hx-confirm="„{{ e.values.name }}“ löschen?" hx-target="closest .rt-tile" hx-swap="outerHTML">Löschen</button>
+        {% endif %}
+        <span class="rt-spacer"></span>
+        <button type="button" class="rt-btn" hx-get="{{ tile_url }}{% if tile.show_all %}?all=1{% endif %}"
+                hx-target="closest .rt-tile" hx-swap="outerHTML">Abbrechen</button>
+        <button type="submit" class="rt-btn is-primary">Speichern</button>
+      </div>
+    </form>
+    {% endwith %}
+
+  {% else %}
+    {% if tile.items %}
+      <ul class="rt-list">
+        {% for item in tile.items %}
+          <li class="rt-item is-{{ item.kind }}">
+            <div class="rt-main">
+              <span class="rt-name">{{ item.name }}</span>
+              <div class="rt-line">
+                {# Balken als SVG, weil die CSP Inline-Styles verbietet; Strich = Ziel (Intervall) #}
+                <svg class="rt-bar" aria-hidden="true" width="100%" height="5"><rect class="rt-track" width="100%" height="5" rx="2.5"></rect><rect class="rt-fill" width="{{ item.fill }}" height="5" rx="2.5"></rect><rect class="rt-mark" x="66.67%" width="2" height="5"></rect></svg>
+                <span class="rt-label">{{ item.label }}</span>
+              </div>
+            </div>
+            <button type="button" class="rt-edit" aria-label="{{ item.name }} bearbeiten"
+                    hx-get="{{ tile_url }}?edit={{ item.id }}{% if tile.show_all %}&amp;all=1{% endif %}"
+                    hx-target="closest .rt-tile" hx-swap="outerHTML">
+              <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L18.5 9.5a2.1 2.1 0 0 0-4-4L4 16v4z"></path><path d="M13.5 6.5l4 4"></path></svg>
+            </button>
+            <form method="post" action="{% url 'routinen:done' item.id %}"
+                  hx-post="{% url 'routinen:done' item.id %}" hx-target="closest .rt-tile" hx-swap="outerHTML">
+              {% csrf_token %}
+              {% if tile.show_all %}<input type="hidden" name="all" value="1">{% endif %}
+              <button type="submit" class="rt-check" aria-label="{{ item.name }} erledigt">
+                <svg aria-hidden="true" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"></path></svg>
+              </button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% elif tile.has_entries %}
+      <p class="rt-empty">Alles erledigt.</p>
+    {% else %}
+      <p class="rt-empty">Noch keine Routinen – mit + anlegen.</p>
+    {% endif %}
+
+    <footer class="rt-foot">
+      {% if tile.has_entries %}
+        <button type="button" class="rt-more" hx-get="{{ tile_url }}{% if not tile.show_all %}?all=1{% endif %}"
+                hx-target="closest .rt-tile" hx-swap="outerHTML">{% if tile.show_all %}Nur fällige{% else %}Alle ({{ tile.count_all }}){% endif %}</button>
+      {% else %}
+        <span>routinen.json</span>
+      {% endif %}
+      <button type="button" class="rt-add" aria-label="Neue Routine"
+              hx-get="{{ tile_url }}?edit=neu{% if tile.show_all %}&amp;all=1{% endif %}" hx-target="closest .rt-tile" hx-swap="outerHTML">
+        <svg aria-hidden="true" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"></path></svg>
+      </button>
+    </footer>
+  {% endif %}
+  </div>
+</section>

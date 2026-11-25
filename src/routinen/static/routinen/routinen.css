@@ -1,0 +1,154 @@
+/* Routinen-Kachel – 340 px, kompakt, dünne Linien */
+.rt-tile {
+  --rt-red: #B42318;
+  --rt-amber: #D99A00;
+  --rt-amber-text: #8A5A00;
+  --rt-green: #2E7D4F;
+  --rt-grey: #9A968E;
+  --rt-text: #1A1A18;
+  --rt-muted: #5E5B55;
+  --rt-line: #ECE9E3;
+  --rt-border: #DDDAD3;
+  --rt-bg: #FFFFFF;
+
+  width: 340px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px;
+  background: var(--rt-bg);
+  border: 1px solid var(--rt-border);
+  border-radius: 12px;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
+  color: var(--rt-text);
+}
+
+/* Kopf: Statuspunkt, Titel, Kurzfassung, Chevron – die ganze Zeile klappt */
+.rt-head { display: flex; align-items: center; padding-bottom: 8px; }
+.rt-title { flex: 1; min-width: 0; margin: 0; font-size: 22px; font-weight: 600; line-height: 28px; }
+.rt-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin: -8px 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+.rt-light { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; background: var(--rt-grey); }
+.rt-light.is-red { background: var(--rt-red); }
+.rt-light.is-amber { background: var(--rt-amber); }
+.rt-light.is-green { background: var(--rt-green); }
+.rt-summary { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--rt-muted); white-space: nowrap; }
+.rt-chevron { color: var(--rt-muted); flex-shrink: 0; transition: transform .15s ease; }
+
+/* Eingeklappt: Zustand auf <html data-collapsed="…">, überlebt das HTMX-Neuladen */
+:root[data-collapsed~="routines"] .rt-tile .rt-body { display: none; }
+:root[data-collapsed~="routines"] .rt-tile .rt-head { padding-bottom: 0; }
+:root[data-collapsed~="routines"] .rt-tile .rt-chevron { transform: rotate(-90deg); }
+@media (prefers-reduced-motion: reduce) { .rt-chevron { transition: none; } }
+
+/* Einträge: Name · Zustand (Text, nie nur Farbe), Balken darunter, rechts Stift und Häkchen */
+.rt-list { list-style: none; margin: 0; padding: 0; }
+.rt-item { display: flex; align-items: center; gap: 2px; padding: 4px 0; border-top: 1px solid var(--rt-line); }
+.rt-item form { display: flex; margin: 0; }
+.rt-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; padding-right: 6px; }
+/* Name bekommt die ganze Breite; Zustand steht rechts neben dem Balken */
+.rt-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 13px; line-height: 20px; font-weight: 600; }
+.rt-line { display: flex; align-items: center; gap: 8px; line-height: 18px; }
+.rt-item.is-ok .rt-name { font-weight: 400; }
+.rt-label { flex-shrink: 0; min-width: 132px; text-align: right; font-size: 12px; color: var(--rt-muted); white-space: nowrap; }  /* feste Breite: Balken gleich lang */
+.rt-item.is-due .rt-label { color: var(--rt-amber-text); font-weight: 600; }
+.rt-item.is-over .rt-label { color: var(--rt-red); font-weight: 600; }
+.rt-bar { display: block; flex: 1; min-width: 40px; overflow: visible; }
+.rt-track { fill: var(--rt-line); }
+.rt-fill { fill: var(--rt-grey); }
+.rt-item.is-due .rt-fill { fill: var(--rt-amber); }
+.rt-item.is-over .rt-fill { fill: var(--rt-red); }
+.rt-mark { fill: var(--rt-text); }
+
+.rt-edit, .rt-check {
+  position: relative;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.rt-edit { background: none; border: 0; color: var(--rt-muted); }
+.rt-check { background: var(--rt-bg); border: 1px solid var(--rt-border); color: var(--rt-text); }
+/* Trefferfläche ~44 px, ohne das Layout zu ändern */
+.rt-edit::after, .rt-check::after { content: ""; position: absolute; inset: -6px -3px; }
+
+.rt-empty, .rt-error { margin: 0; padding: 4px 0; border-top: 1px solid var(--rt-line); font-size: 13px; line-height: 20px; }
+.rt-empty { color: var(--rt-muted); }
+.rt-error { font-size: 12px; line-height: 18px; color: var(--rt-red); }
+
+/* Footer: „Alle (N)“ links, + rechts (wie der Refresh-Button der anderen Kacheln) */
+.rt-foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding-top: 6px; border-top: 1px solid var(--rt-line); font-size: 11px; color: var(--rt-muted); }
+.rt-more { position: relative; padding: 0; background: none; border: 0; font: inherit; color: var(--rt-muted); text-decoration: underline; cursor: pointer; }
+.rt-more::after { content: ""; position: absolute; inset: -12px -6px; }
+.rt-add { position: relative; width: 24px; height: 24px; padding: 0; display: flex; align-items: center; justify-content: center; background: var(--rt-bg); color: var(--rt-text); border: 1px solid var(--rt-border); border-radius: 6px; cursor: pointer; }
+.rt-add::after { content: ""; position: absolute; inset: -10px; }
+
+/* Bearbeiten: ersetzt die Liste in der Kachel, kein Polling solange offen */
+.rt-form { display: flex; flex-direction: column; gap: 10px; padding: 8px 0 4px; border-top: 1px solid var(--rt-line); }
+.rt-form-title { margin: 0; font-size: 13px; font-weight: 600; }
+.rt-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; color: var(--rt-muted); }
+.rt-field input {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  background: var(--rt-bg);
+  color: var(--rt-text);
+  border: 1px solid var(--rt-border);
+  border-radius: 8px;
+  font: 16px/1.2 'IBM Plex Sans', system-ui, sans-serif;   /* 16 px: iOS zoomt sonst beim Antippen */
+}
+.rt-field input[aria-invalid="true"] { border-color: var(--rt-red); }
+.rt-field-error { font-style: normal; color: var(--rt-red); }
+.rt-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.rt-hint { margin: 0; font-size: 12px; line-height: 18px; color: var(--rt-muted); }
+.rt-actions { display: flex; align-items: center; gap: 8px; }
+.rt-spacer { flex: 1; }
+.rt-btn { min-height: 36px; padding: 0 12px; background: var(--rt-bg); color: var(--rt-text); border: 1px solid var(--rt-border); border-radius: 8px; font: 600 13px 'IBM Plex Sans', system-ui, sans-serif; cursor: pointer; }
+.rt-btn.is-primary { background: var(--rt-text); color: var(--rt-bg); border-color: var(--rt-text); }
+.rt-delete { min-height: 36px; padding: 0 4px; background: none; border: 0; color: var(--rt-red); font: 600 13px 'IBM Plex Sans', system-ui, sans-serif; cursor: pointer; }
+
+/* Dunkelmodus: folgt dem System, außer der Schalter hat ein Thema gesetzt (data-theme auf <html>) */
+:root[data-theme="dark"] .rt-tile {
+  --rt-red: #F2675C;
+  --rt-amber: #E5AC1E;
+  --rt-amber-text: #F0C04A;
+  --rt-green: #4CAF7A;
+  --rt-grey: #6F6C66;
+  --rt-text: #ECEAE6;
+  --rt-muted: #A19D95;
+  --rt-line: #2E2D2A;
+  --rt-border: #3A3935;
+  --rt-bg: #1F1F1D;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .rt-tile {
+    --rt-red: #F2675C;
+    --rt-amber: #E5AC1E;
+    --rt-amber-text: #F0C04A;
+    --rt-green: #4CAF7A;
+    --rt-grey: #6F6C66;
+    --rt-text: #ECEAE6;
+    --rt-muted: #A19D95;
+    --rt-line: #2E2D2A;
+    --rt-border: #3A3935;
+    --rt-bg: #1F1F1D;
+  }
+}

@@ -1,0 +1,9 @@
+.venv/
+__pycache__/
+*.pyc
+dist/
+.DS_Store
+*.swp
+# Inhalte leben nur auf der jeweiligen Maschine
+routinen.json
+routinen.json.tmp
