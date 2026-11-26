@@ -1,0 +1,6 @@
+{# Rahmen der Verwaltungsseite. Hosts überschreiben diese Datei, um ihr eigenes Layout zu nutzen (README.md). #}
+{% extends "routinen/seite.html" %}
+{% load static %}
+{% block title %}Routinen{% endblock %}
+{% block head %}<link rel="stylesheet" href="{% static 'routinen/verwaltung.css' %}">{% endblock %}
+{% block content %}{% include "routinen/verwaltung_inhalt.html" %}{% endblock %}

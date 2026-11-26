@@ -1,0 +1,145 @@
+/* Verwaltungsseite der Routinen – gleiche Farben wie die Kachel, Präfix rv- */
+.rv-page {
+  --rv-red: #B42318;
+  --rv-amber: #D99A00;
+  --rv-amber-text: #8A5A00;
+  --rv-green: #2E7D4F;
+  --rv-grey: #9A968E;
+  --rv-text: #1A1A18;
+  --rv-muted: #5E5B55;
+  --rv-line: #ECE9E3;
+  --rv-border: #DDDAD3;
+  --rv-bg: #FFFFFF;
+  --rv-tint: #F7F6F3;
+
+  box-sizing: border-box;
+  max-width: 1200px;
+  padding: 16px 20px;
+  background: var(--rv-bg);
+  color: var(--rv-text);
+  font: 14px/1.45 'IBM Plex Sans', system-ui, sans-serif;
+}
+.rv-page *, .rv-page *::before, .rv-page *::after { box-sizing: inherit; }
+.rv-body { margin: 0; background: #FFFFFF; }
+
+/* Kopf: Titel mit Statuspunkt, Zähler, Suche und „Neue Routine“ */
+.rv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-bottom: 12px; }
+.rv-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 22px; font-weight: 600; line-height: 28px; }
+.rv-light { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; background: var(--rv-grey); }
+.rv-light.is-red { background: var(--rv-red); }
+.rv-light.is-amber { background: var(--rv-amber); }
+.rv-light.is-green { background: var(--rv-green); }
+.rv-counts { margin: 0; color: var(--rv-muted); font-size: 13px; }
+.rv-tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-left: auto; }
+.rv-search { display: flex; align-items: center; gap: 8px; margin: 0; }
+.rv-search input { width: 240px; max-width: 60vw; }
+
+/* Knöpfe und Links */
+.rv-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-height: 36px; padding: 0 12px;
+  background: var(--rv-bg); color: var(--rv-text);
+  border: 1px solid var(--rv-border); border-radius: 8px;
+  font: 600 13px 'IBM Plex Sans', system-ui, sans-serif; text-decoration: none; white-space: nowrap; cursor: pointer;
+}
+.rv-btn.is-primary { background: var(--rv-text); color: var(--rv-bg); border-color: var(--rv-text); }
+.rv-btn.is-danger { background: var(--rv-red); color: #FFFFFF; border-color: var(--rv-red); }
+.rv-btn.is-small { min-height: 30px; padding: 0 10px; font-size: 12px; font-weight: 400; }
+.rv-link { color: var(--rv-muted); font-size: 13px; }
+.rv-delete { color: var(--rv-red); font-weight: 600; font-size: 13px; }
+
+/* Felder */
+.rv-page input:not([type="hidden"]), .rv-page textarea {
+  min-height: 36px; padding: 6px 10px;
+  background: var(--rv-bg); color: var(--rv-text);
+  border: 1px solid var(--rv-border); border-radius: 8px;
+  font: 16px/1.3 'IBM Plex Sans', system-ui, sans-serif;   /* 16 px: iOS zoomt sonst beim Antippen */
+}
+.rv-page textarea { width: 100%; resize: vertical; }
+.rv-page [aria-invalid="true"] { border-color: var(--rv-red); }
+
+/* Formular und Rückfrage */
+.rv-panel { margin: 0 0 16px; padding: 14px 16px; background: var(--rv-tint); border: 1px solid var(--rv-border); border-radius: 12px; }
+.rv-panel p { margin: 0 0 10px; }
+.rv-form { display: flex; flex-direction: column; gap: 12px; max-width: 720px; }
+.rv-panel-title { margin: 0; font-size: 15px; font-weight: 600; }
+.rv-field { display: flex; flex-direction: column; gap: 4px; min-width: 0; font-size: 12px; color: var(--rv-muted); }
+.rv-field input { width: 100%; }
+.rv-field-error { font-style: normal; color: var(--rv-red); }
+.rv-row { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.rv-hint { margin: 0; font-size: 12px; color: var(--rv-muted); }
+.rv-actions { display: flex; align-items: center; gap: 8px; }
+.rv-spacer { flex: 1; }
+
+/* Tabelle */
+.rv-table { width: 100%; border-collapse: collapse; }
+.rv-table th { padding: 6px 8px; text-align: left; font-size: 12px; font-weight: 600; color: var(--rv-muted); border-bottom: 1px solid var(--rv-border); white-space: nowrap; }
+.rv-table td { padding: 8px; vertical-align: top; border-bottom: 1px solid var(--rv-line); }
+.rv-table .is-num { text-align: right; white-space: nowrap; }
+.rv-item.is-current td { background: var(--rv-tint); }
+.rv-state { white-space: nowrap; color: var(--rv-muted); font-size: 13px; }
+.rv-dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--rv-grey); }
+.rv-item.is-due .rv-dot { background: var(--rv-amber); }
+.rv-item.is-over .rv-dot { background: var(--rv-red); }
+.rv-item.is-ok .rv-dot { background: var(--rv-green); }
+.rv-item.is-due .rv-state { color: var(--rv-amber-text); font-weight: 600; }
+.rv-item.is-over .rv-state { color: var(--rv-red); font-weight: 600; }
+.rv-name { font-weight: 600; }
+.rv-name a { color: inherit; }
+.rv-desc { max-width: 420px; color: var(--rv-muted); font-size: 13px; overflow-wrap: anywhere; }
+.rv-none { color: var(--rv-grey); }
+.rv-cell-actions { text-align: right; }
+.rv-cell-actions form { margin: 0; }
+.rv-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+.rv-empty, .rv-error { margin: 0; padding: 8px 0; }
+.rv-empty { color: var(--rv-muted); }
+.rv-error { color: var(--rv-red); }
+
+/* Schmal: Zeilen als Karten, Spaltenname vor dem Wert */
+@media (max-width: 760px) {
+  .rv-page { padding: 12px; }
+  .rv-tools, .rv-search { width: 100%; margin-left: 0; }
+  .rv-search input { flex: 1; width: auto; max-width: none; }
+  .rv-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rv-table thead { display: none; }
+  .rv-table, .rv-table tbody, .rv-table tr, .rv-table td { display: block; }
+  .rv-table tr { padding: 8px 0; border-bottom: 1px solid var(--rv-border); }
+  .rv-table td { display: flex; gap: 12px; padding: 2px 0; border: 0; text-align: left; }
+  .rv-table td[data-label]::before { content: attr(data-label); flex: 0 0 96px; color: var(--rv-muted); font-size: 12px; font-weight: 400; }
+  .rv-table .is-num { text-align: left; }
+  .rv-desc { max-width: none; }
+  .rv-cell-actions { justify-content: flex-end; padding-top: 6px; }
+}
+
+/* Dunkelmodus: wie die Kachel – folgt dem System, außer data-theme auf <html> ist gesetzt */
+:root[data-theme="dark"] .rv-page, :root[data-theme="dark"] .rv-body {
+  --rv-red: #F2675C;
+  --rv-amber: #E5AC1E;
+  --rv-amber-text: #F0C04A;
+  --rv-green: #4CAF7A;
+  --rv-grey: #6F6C66;
+  --rv-text: #ECEAE6;
+  --rv-muted: #A19D95;
+  --rv-line: #2E2D2A;
+  --rv-border: #3A3935;
+  --rv-bg: #1F1F1D;
+  --rv-tint: #262624;
+}
+:root[data-theme="dark"] .rv-body { background: #1F1F1D; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .rv-page {
+    --rv-red: #F2675C;
+    --rv-amber: #E5AC1E;
+    --rv-amber-text: #F0C04A;
+    --rv-green: #4CAF7A;
+    --rv-grey: #6F6C66;
+    --rv-text: #ECEAE6;
+    --rv-muted: #A19D95;
+    --rv-line: #2E2D2A;
+    --rv-border: #3A3935;
+    --rv-bg: #1F1F1D;
+    --rv-tint: #262624;
+  }
+  :root:not([data-theme="light"]) .rv-body { background: #1F1F1D; }
+}

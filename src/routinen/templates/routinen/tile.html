@@ -102,6 +102,8 @@
       {% if tile.has_entries %}
         <button type="button" class="rt-more" hx-get="{{ tile_url }}{% if not tile.show_all %}?all=1{% endif %}"
                 hx-target="closest .rt-tile" hx-swap="outerHTML">{% if tile.show_all %}Nur fällige{% else %}Alle ({{ tile.count_all }}){% endif %}</button>
+        <a class="rt-more" href="{% url 'routinen:verwaltung' %}">Verwaltung</a>
+        <span class="rt-spacer"></span>
       {% else %}
         <span>routinen.json</span>
       {% endif %}

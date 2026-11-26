@@ -7,6 +7,7 @@ Alles steht in einer Datei `routinen.json` (Ort: siehe `store_path`), die man au
 Gleitend heißt: Die nächste Fälligkeit zählt immer ab der letzten Erledigung (zuletzt + intervall).
 Ab dann gelb, nach weiteren `toleranz` Tagen rot. `id` darf von Hand fehlen (wird aus dem Namen gebildet),
 `toleranz` ebenso (0), `zuletzt` darf null sein (noch nie erledigt = fällig).
+Optional ist `beschreibung` (Text), gepflegt auf der Verwaltungsseite.
 """
 
 import json
@@ -22,6 +23,7 @@ from django.utils import timezone
 
 FILE_NAME = "routinen.json"
 NAME_MAX = 80
+BESCHREIBUNG_MAX = 2000
 DAYS_MAX = 3650
 NEW_DEFAULTS = {"intervall": 7, "toleranz": 2}
 POLL_SECONDS = 600
@@ -78,6 +80,10 @@ def _check(entry, index):
         value = entry.get(key, 0 if key == "toleranz" else None)
         if isinstance(value, bool) or not isinstance(value, int) or not minimum <= value <= DAYS_MAX:
             raise StoreError(f"{where}: „{key}“ muss eine ganze Zahl ab {minimum} sein")
+    if "beschreibung" in entry:
+        text = entry["beschreibung"]
+        if not isinstance(text, str) or len(text) > BESCHREIBUNG_MAX:
+            raise StoreError(f"{where}: „beschreibung“ muss Text mit höchstens {BESCHREIBUNG_MAX} Zeichen sein")
     if entry.get("zuletzt") is not None:
         try:
             date.fromisoformat(entry["zuletzt"])
@@ -163,6 +169,11 @@ def save_entry(routine_id, fields):
             toleranz=fields["toleranz"],
             zuletzt=fields["zuletzt"].isoformat() if fields["zuletzt"] else None,
         )
+        if "beschreibung" in fields:  # das Formular der Kachel hat kein Feld dafür – dann bleibt sie stehen
+            if fields["beschreibung"]:
+                entry["beschreibung"] = fields["beschreibung"]
+            else:
+                entry.pop("beschreibung", None)
         return entry["id"]
     return _update(change)
 
@@ -202,7 +213,13 @@ def parse_form(data, today=None):
         else:
             if zuletzt > today:
                 errors["zuletzt"] = "liegt in der Zukunft"
-    return {"name": name, "intervall": intervall, "toleranz": toleranz, "zuletzt": zuletzt}, errors
+    fields = {"name": name, "intervall": intervall, "toleranz": toleranz, "zuletzt": zuletzt}
+    if "beschreibung" in data:  # nur die Verwaltungsseite schickt das Feld
+        beschreibung = data["beschreibung"].replace("\r\n", "\n").strip()
+        if len(beschreibung) > BESCHREIBUNG_MAX:
+            errors["beschreibung"] = f"höchstens {BESCHREIBUNG_MAX} Zeichen"
+        fields["beschreibung"] = beschreibung
+    return fields, errors
 
 
 def _days(n):
@@ -234,6 +251,39 @@ def build_item(entry, today):
     }
 
 
+def _edit_context(entries, edit, form, errors, today):
+    """Formular für `edit` (id oder "neu"); None, wenn es die Routine nicht gibt."""
+    entry = next((e for e in entries if e["id"] == edit), None)
+    if entry is None and edit != "neu":
+        return None
+    if form is not None:
+        values = form
+    elif entry:
+        values = {"name": entry["name"], "intervall": entry["intervall"], "toleranz": entry.get("toleranz", 0),
+                  "zuletzt": entry.get("zuletzt") or "", "beschreibung": entry.get("beschreibung", "")}
+    else:
+        values = {"name": "", **NEW_DEFAULTS, "zuletzt": today.isoformat(), "beschreibung": ""}
+    hint = ""
+    if entry and entry.get("zuletzt"):
+        due_day = date.fromisoformat(entry["zuletzt"]) + timedelta(days=entry["intervall"])
+        red_day = due_day + timedelta(days=entry.get("toleranz", 0) + 1)
+        hint = f"Fällig {date_label(due_day)} · rot ab {date_label(red_day)}"
+    return {
+        "id": entry["id"] if entry else "",
+        "title": "Routine bearbeiten" if entry else "Neue Routine",
+        "values": values,
+        "errors": errors or {},
+        "hint": hint,
+    }
+
+
+def _sorted(items):
+    """Fällige zuerst (am weitesten drüber oben), dann die übrigen nach nächster Fälligkeit."""
+    due = sorted((i for i in items if i["kind"] != "ok"), key=lambda i: -i["ratio"])
+    ok = sorted((i for i in items if i["kind"] == "ok"), key=lambda i: i["due_in"])
+    return due, ok
+
+
 STATUS_LABELS = {"red": "überfällig", "amber": "fällig", "green": "alles erledigt", "unknown": "keine Daten"}
 
 
@@ -251,8 +301,7 @@ def get_tile(show_all=False, edit=None, form=None, errors=None, today=None):
         return tile
 
     items = [build_item(entry, today) for entry in entries]
-    due = sorted((i for i in items if i["kind"] != "ok"), key=lambda i: -i["ratio"])
-    ok = sorted((i for i in items if i["kind"] == "ok"), key=lambda i: i["due_in"])
+    due, ok = _sorted(items)
     status = "red" if any(i["kind"] == "over" for i in due) else "amber" if due else "green"
     tile.update(
         status=status,
@@ -264,26 +313,49 @@ def get_tile(show_all=False, edit=None, form=None, errors=None, today=None):
     )
 
     if edit:
-        entry = next((e for e in entries if e["id"] == edit), None)
-        if entry is None and edit != "neu":
-            return tile
-        if form is not None:
-            values = form
-        elif entry:
-            values = {"name": entry["name"], "intervall": entry["intervall"],
-                      "toleranz": entry.get("toleranz", 0), "zuletzt": entry.get("zuletzt") or ""}
-        else:
-            values = {"name": "", **NEW_DEFAULTS, "zuletzt": today.isoformat()}
-        hint = ""
-        if entry and entry.get("zuletzt"):
-            due_day = date.fromisoformat(entry["zuletzt"]) + timedelta(days=entry["intervall"])
-            red_day = due_day + timedelta(days=entry.get("toleranz", 0) + 1)
-            hint = f"Fällig {date_label(due_day)} · rot ab {date_label(red_day)}"
-        tile["edit"] = {
-            "id": entry["id"] if entry else "",
-            "title": "Routine bearbeiten" if entry else "Neue Routine",
-            "values": values,
-            "errors": errors or {},
-            "hint": hint,
-        }
+        tile["edit"] = _edit_context(entries, edit, form, errors, today)
     return tile
+
+
+def get_overview(edit=None, loeschen=None, q="", form=None, errors=None, today=None):
+    """Alle Routinen für die Verwaltungsseite, mit Beschreibung und Daten."""
+    today = today or timezone.localdate()
+    q = q.strip()
+    page = {
+        "status": "unknown", "status_label": STATUS_LABELS["unknown"], "error": None, "items": [],
+        "count_all": 0, "counts": {"over": 0, "due": 0, "ok": 0}, "q": q,
+        "edit": None, "loeschen": None, "today_iso": today.isoformat(),
+    }
+    try:
+        entries = load()
+    except StoreError as exc:
+        page["error"] = str(exc)
+        return page
+
+    items = []
+    for entry in entries:
+        item = build_item(entry, today)
+        zuletzt = date.fromisoformat(entry["zuletzt"]) if entry.get("zuletzt") else None
+        item.update(
+            beschreibung=entry.get("beschreibung", ""),
+            intervall=entry["intervall"],
+            toleranz=entry.get("toleranz", 0),
+            zuletzt_label=date_label(zuletzt) if zuletzt else "–",
+            faellig_label=date_label(zuletzt + timedelta(days=entry["intervall"])) if zuletzt else "sofort",
+        )
+        items.append(item)
+    for item in items:
+        page["counts"][item["kind"]] += 1
+    status = "red" if page["counts"]["over"] else "amber" if page["counts"]["due"] else "green"
+    due, ok = _sorted(items)
+    shown = due + ok
+    if q:
+        needle = q.casefold()
+        shown = [i for i in shown if needle in i["name"].casefold() or needle in i["beschreibung"].casefold()]
+    page.update(status=status, status_label=STATUS_LABELS[status], items=shown, count_all=len(items))
+
+    if edit:
+        page["edit"] = _edit_context(entries, edit, form, errors, today)
+    elif loeschen:
+        page["loeschen"] = next(({"id": e["id"], "name": e["name"]} for e in entries if e["id"] == loeschen), None)
+    return page

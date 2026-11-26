@@ -26,7 +26,9 @@ def tearDownModule():
 TODAY = date(2026, 11, 23)
 
 
-class RoutinesTests(SimpleTestCase):
+class StoreTestCase(SimpleTestCase):
+    """Hilfen für Tests mit routinen.json im Testordner."""
+
     def setUp(self):
         self.path = core.store_path()
         self.addCleanup(self.path.unlink, missing_ok=True)
@@ -45,6 +47,8 @@ class RoutinesTests(SimpleTestCase):
             {"id": "aufgabe-d", "name": "Aufgabe D", "intervall": 7, "toleranz": 3, "zuletzt": "2026-11-16"},
         ]})
 
+
+class RoutinesTests(StoreTestCase):
     def test_states_and_order(self):
         self.sample()
         tile = core.get_tile(today=TODAY)
@@ -175,3 +179,104 @@ class RoutinesTests(SimpleTestCase):
         self.assertEqual(core.get_tile()["poll_seconds"], 600)
         with override_settings(ROUTINEN_POLL_SECONDS=30):
             self.assertEqual(core.get_tile()["poll_seconds"], 30)
+
+
+class VerwaltungTests(StoreTestCase):
+    """Verwaltungsseite und Feld `beschreibung`."""
+
+    def page(self, **params):
+        return self.client.get(reverse("routinen:verwaltung"), params)
+
+    def post_save(self, **fields):
+        data = {"id": "", "name": "X", "intervall": "7", "toleranz": "0", "zuletzt": "", "zurueck": "verwaltung"}
+        data.update(fields)
+        return self.client.post(reverse("routinen:save"), data)
+
+    def test_beschreibung_must_be_short_text(self):
+        self.write({"routinen": [{"name": "X", "intervall": 3, "beschreibung": 5}]})
+        self.assertIn("beschreibung", core.get_overview(today=TODAY)["error"])
+        self.write({"routinen": [{"name": "X", "intervall": 3, "beschreibung": "a" * (core.BESCHREIBUNG_MAX + 1)}]})
+        self.assertIn("beschreibung", core.get_tile(today=TODAY)["error"])
+
+    def test_overview_lists_all_in_order_with_counts(self):
+        self.sample()
+        page = core.get_overview(today=TODAY)
+        self.assertEqual([i["id"] for i in page["items"]], ["aufgabe-a", "aufgabe-b", "aufgabe-d", "aufgabe-c"])
+        self.assertEqual(page["counts"], {"over": 1, "due": 2, "ok": 1})
+        self.assertEqual((page["status"], page["count_all"]), ("red", 4))
+        self.assertEqual(page["items"][0]["zuletzt_label"], "Di, 17. Nov")
+        self.assertEqual(page["items"][0]["faellig_label"], "Sa, 21. Nov")
+
+    def test_overview_search_in_name_and_description(self):
+        self.write({"routinen": [
+            {"name": "Filter", "intervall": 30, "beschreibung": "Küche, unter der Spüle"},
+            {"name": "Pflanzen", "intervall": 4},
+        ]})
+        self.assertEqual([i["name"] for i in core.get_overview(q="spüle", today=TODAY)["items"]], ["Filter"])
+        self.assertEqual([i["name"] for i in core.get_overview(q="PFLANZ", today=TODAY)["items"]], ["Pflanzen"])
+        self.assertEqual(core.get_overview(q="gibts nicht", today=TODAY)["count_all"], 2)
+
+    def test_overview_broken_file(self):
+        self.write("{")
+        response = self.page()
+        self.assertContains(response, "fehlerhaft")
+        self.assertNotContains(response, "rv-table")
+
+    def test_page_renders_all_with_description(self):
+        self.write({"routinen": [{"id": "filter", "name": "Filter", "intervall": 30, "zuletzt": None,
+                                  "beschreibung": "Zeile 1\nZeile <2>"}]})
+        response = self.page()
+        self.assertContains(response, "Filter")
+        self.assertContains(response, "Zeile 1<br>Zeile &lt;2&gt;")
+        self.assertContains(response, "routinen/verwaltung.css")
+
+    def test_page_edit_and_delete_confirmation(self):
+        self.write({"routinen": [{"id": "filter", "name": "Filter", "intervall": 30, "beschreibung": "unten"}]})
+        response = self.page(edit="filter")
+        self.assertContains(response, 'value="Filter"')
+        self.assertContains(response, ">unten</textarea>")
+        self.assertContains(response, 'name="zurueck" value="verwaltung"')
+        response = self.page(loeschen="filter")
+        self.assertContains(response, "„Filter“ wirklich löschen?")
+        self.assertContains(response, reverse("routinen:delete", args=["filter"]))
+
+    def test_save_from_page_writes_description_and_redirects(self):
+        self.write({"routinen": []})
+        response = self.post_save(name="Filter", beschreibung="  unter der Spüle\r\nalle 30 Tage  ")
+        self.assertRedirects(response, reverse("routinen:verwaltung"), fetch_redirect_response=False)
+        (entry,) = self.read()["routinen"]
+        self.assertEqual(entry["beschreibung"], "unter der Spüle\nalle 30 Tage")
+
+    def test_empty_description_removes_field(self):
+        self.write({"routinen": [{"id": "filter", "name": "Filter", "intervall": 30, "beschreibung": "alt"}]})
+        self.post_save(id="filter", name="Filter", intervall="30", beschreibung="")
+        self.assertNotIn("beschreibung", self.read()["routinen"][0])
+
+    def test_tile_form_keeps_description(self):
+        self.write({"routinen": [{"id": "filter", "name": "Filter", "intervall": 30, "beschreibung": "bleibt"}]})
+        self.client.post(reverse("routinen:save"), {
+            "id": "filter", "name": "Filter neu", "intervall": "20", "toleranz": "1", "zuletzt": "",
+        }, HTTP_HX_REQUEST="true")
+        entry = self.read()["routinen"][0]
+        self.assertEqual((entry["name"], entry["beschreibung"]), ("Filter neu", "bleibt"))
+
+    def test_save_invalid_from_page_shows_page_with_errors(self):
+        self.write({"routinen": []})
+        response = self.post_save(name="", beschreibung="x" * (core.BESCHREIBUNG_MAX + 1))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "rv-page")
+        self.assertContains(response, f"höchstens {core.BESCHREIBUNG_MAX} Zeichen")
+        self.assertEqual(self.read(), {"routinen": []})
+
+    def test_done_and_delete_from_page_redirect_back(self):
+        self.sample()
+        url = reverse("routinen:verwaltung")
+        response = self.client.post(reverse("routinen:done", args=["aufgabe-a"]), {"zurueck": "verwaltung"})
+        self.assertRedirects(response, url, fetch_redirect_response=False)
+        response = self.client.post(reverse("routinen:delete", args=["aufgabe-a"]), {"zurueck": "verwaltung"})
+        self.assertRedirects(response, url, fetch_redirect_response=False)
+        self.assertNotIn("aufgabe-a", [e["id"] for e in self.read()["routinen"]])
+
+    def test_tile_links_to_page(self):
+        self.sample()
+        self.assertContains(self.client.get(reverse("routinen:tile")), f'href="{reverse("routinen:verwaltung")}"')

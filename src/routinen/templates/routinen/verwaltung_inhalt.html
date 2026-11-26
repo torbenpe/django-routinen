@@ -1,0 +1,123 @@
+{# Verwaltung aller Routinen. Erwartet `verwaltung` im Kontext. Normale Formulare, kein JavaScript nötig. #}
+{% url 'routinen:verwaltung' as page_url %}
+{% with v=verwaltung %}
+<section class="rv-page" aria-labelledby="rv-title">
+  <header class="rv-head">
+    <h1 class="rv-title" id="rv-title">
+      <span class="rv-light is-{{ v.status }}" role="img" aria-label="Status: {{ v.status_label }}"></span>
+      Routinen
+    </h1>
+    {% if not v.error %}
+      <p class="rv-counts">{{ v.count_all }} insgesamt · {{ v.counts.over }} überfällig · {{ v.counts.due }} fällig · {{ v.counts.ok }} im Plan</p>
+    {% endif %}
+    <div class="rv-tools">
+      <form class="rv-search" method="get" action="{{ page_url }}" role="search">
+        <input type="search" name="q" value="{{ v.q }}" placeholder="Name oder Beschreibung" aria-label="Routinen durchsuchen">
+        <button type="submit" class="rv-btn">Suchen</button>
+        {% if v.q %}<a class="rv-link" href="{{ page_url }}">Alle zeigen</a>{% endif %}
+      </form>
+      <a class="rv-btn is-primary" href="{{ page_url }}?edit=neu">+ Neue Routine</a>
+    </div>
+  </header>
+
+  {% if v.error %}
+    <p class="rv-error">{{ v.error }}</p>
+  {% else %}
+
+    {% if v.edit %}
+      {% with e=v.edit %}
+      <form class="rv-panel rv-form" method="post" action="{% url 'routinen:save' %}">
+        {% csrf_token %}
+        <input type="hidden" name="id" value="{{ e.id }}">
+        <input type="hidden" name="zurueck" value="verwaltung">
+        <h2 class="rv-panel-title">{{ e.title }}</h2>
+
+        <label class="rv-field">
+          <span>Name{% if e.errors.name %} <em class="rv-field-error">– {{ e.errors.name }}</em>{% endif %}</span>
+          <input name="name" value="{{ e.values.name }}" maxlength="80" required autocomplete="off"{% if e.errors.name %} aria-invalid="true"{% endif %}>
+        </label>
+        <div class="rv-row">
+          <label class="rv-field">
+            <span>Intervall (Tage){% if e.errors.intervall %} <em class="rv-field-error">– {{ e.errors.intervall }}</em>{% endif %}</span>
+            <input type="number" name="intervall" value="{{ e.values.intervall }}" min="1" max="3650" inputmode="numeric" required{% if e.errors.intervall %} aria-invalid="true"{% endif %}>
+          </label>
+          <label class="rv-field">
+            <span>Toleranz (Tage){% if e.errors.toleranz %} <em class="rv-field-error">– {{ e.errors.toleranz }}</em>{% endif %}</span>
+            <input type="number" name="toleranz" value="{{ e.values.toleranz }}" min="0" max="3650" inputmode="numeric" required{% if e.errors.toleranz %} aria-invalid="true"{% endif %}>
+          </label>
+          <label class="rv-field">
+            <span>Zuletzt erledigt{% if e.errors.zuletzt %} <em class="rv-field-error">– {{ e.errors.zuletzt }}</em>{% endif %}</span>
+            <input type="date" name="zuletzt" value="{{ e.values.zuletzt }}" max="{{ v.today_iso }}"{% if e.errors.zuletzt %} aria-invalid="true"{% endif %}>
+          </label>
+        </div>
+        <label class="rv-field">
+          <span>Beschreibung{% if e.errors.beschreibung %} <em class="rv-field-error">– {{ e.errors.beschreibung }}</em>{% endif %}</span>
+          <textarea name="beschreibung" rows="5" maxlength="2000"{% if e.errors.beschreibung %} aria-invalid="true"{% endif %}>{{ e.values.beschreibung }}</textarea>
+        </label>
+        <p class="rv-hint">{% if e.hint %}{{ e.hint }}{% else %}Fällig nach Intervall, rot nach Intervall + Toleranz.{% endif %}</p>
+
+        <div class="rv-actions">
+          {% if e.id %}<a class="rv-delete" href="{{ page_url }}?loeschen={{ e.id }}">Löschen …</a>{% endif %}
+          <span class="rv-spacer"></span>
+          <a class="rv-btn" href="{{ page_url }}">Abbrechen</a>
+          <button type="submit" class="rv-btn is-primary">Speichern</button>
+        </div>
+      </form>
+      {% endwith %}
+
+    {% elif v.loeschen %}
+      <form class="rv-panel rv-confirm" method="post" action="{% url 'routinen:delete' v.loeschen.id %}">
+        {% csrf_token %}
+        <input type="hidden" name="zurueck" value="verwaltung">
+        <p>„{{ v.loeschen.name }}“ wirklich löschen?</p>
+        <div class="rv-actions">
+          <span class="rv-spacer"></span>
+          <a class="rv-btn" href="{{ page_url }}">Abbrechen</a>
+          <button type="submit" class="rv-btn is-danger">Löschen</button>
+        </div>
+      </form>
+    {% endif %}
+
+    {% if v.items %}
+      <table class="rv-table">
+        <thead>
+          <tr>
+            <th scope="col">Zustand</th>
+            <th scope="col">Routine</th>
+            <th scope="col">Beschreibung</th>
+            <th scope="col" class="is-num">Intervall</th>
+            <th scope="col" class="is-num">Toleranz</th>
+            <th scope="col">Zuletzt</th>
+            <th scope="col">Fällig</th>
+            <th scope="col"><span class="rv-sr">Aktionen</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in v.items %}
+            <tr class="rv-item is-{{ item.kind }}{% if v.edit.id == item.id %} is-current{% endif %}">
+              <td class="rv-state" data-label="Zustand"><span class="rv-dot" aria-hidden="true"></span>{{ item.label }}</td>
+              <td class="rv-name" data-label="Routine"><a href="{{ page_url }}?edit={{ item.id }}">{{ item.name }}</a></td>
+              <td class="rv-desc" data-label="Beschreibung">{% if item.beschreibung %}{{ item.beschreibung|linebreaksbr }}{% else %}<span class="rv-none">–</span>{% endif %}</td>
+              <td class="is-num" data-label="Intervall">{{ item.intervall }} T</td>
+              <td class="is-num" data-label="Toleranz">{{ item.toleranz }} T</td>
+              <td data-label="Zuletzt">{{ item.zuletzt_label }}</td>
+              <td data-label="Fällig">{{ item.faellig_label }}</td>
+              <td class="rv-cell-actions">
+                <form method="post" action="{% url 'routinen:done' item.id %}">
+                  {% csrf_token %}
+                  <input type="hidden" name="zurueck" value="verwaltung">
+                  <button type="submit" class="rv-btn is-small">✓ Erledigt</button>
+                </form>
+              </td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% elif v.q %}
+      <p class="rv-empty">Keine Routine passt zu „{{ v.q }}“.</p>
+    {% else %}
+      <p class="rv-empty">Noch keine Routinen – mit „+ Neue Routine“ anlegen.</p>
+    {% endif %}
+  {% endif %}
+</section>
+{% endwith %}

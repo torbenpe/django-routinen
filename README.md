@@ -1,6 +1,7 @@
 # django-routinen
 
-Django-App mit einer Kachel für wiederkehrende Aufgaben ohne festen Termin (Pflanzen gießen, Filter reinigen …).
+Django-App mit einer Kachel für wiederkehrende Aufgaben ohne festen Termin (Pflanzen gießen, Filter reinigen …)
+und einer Verwaltungsseite, die alle Routinen samt Beschreibung zeigt.
 Gleitendes Intervall: Die nächste Fälligkeit zählt immer ab der letzten Erledigung.
 
 Das Paket enthält nur Code. Die Routinen selbst liegen auf der jeweiligen Maschine in `routinen.json`
@@ -13,7 +14,7 @@ Keine Datenbank, keine Migrationen, keine Inline-Skripte oder -Styles (läuft mi
 
 ```toml
 # pyproject.toml – Version festnageln; das Archiv braucht kein git im Docker-Image
-dependencies = ["django-routinen @ https://github.com/torbenpe/django-routinen/archive/refs/tags/v0.1.0.tar.gz"]
+dependencies = ["django-routinen @ https://github.com/torbenpe/django-routinen/archive/refs/tags/v0.2.0.tar.gz"]
 ```
 
 ```python
@@ -45,14 +46,36 @@ ein Skript für `data-collapse`, dieses weglassen (sonst schaltet jeder Klick zw
 Die Datei wird unter einem Thread-Lock geschrieben: gunicorn mit **einem** Worker (plus Threads) betreiben.
 Die Kachel hat keinen Zugriffsschutz; den muss das Projekt mitbringen.
 
+## Verwaltungsseite
+
+Unter `verwaltung/` (bei `path("tiles/routinen/", …)` also `/tiles/routinen/verwaltung/`, URL-Name
+`routinen:verwaltung`) stehen alle Routinen in einer Tabelle: Zustand, Beschreibung, Intervall, Toleranz, zuletzt
+und nächste Fälligkeit, dazu Suche, Anlegen, Bearbeiten, Erledigen und Löschen (mit Rückfrage). Die Kachel verlinkt
+darauf. Die Seite kommt mit normalen Formularen aus und braucht weder HTMX noch JavaScript.
+
+Ohne weiteres Zutun ist das eine schlichte eigene Seite. Um sie ins Layout des Projekts zu setzen, legt das Projekt
+eine eigene `templates/routinen/verwaltung.html` an (die App mit dieser Vorlage muss in `INSTALLED_APPS` **vor**
+`routinen` stehen):
+
+```django
+{% extends "basis.html" %}  {# Basis-Template und Blocknamen des Projekts #}
+{% load static %}
+{% block titel %}Routinen{% endblock %}
+{% block kopf %}<link rel="stylesheet" href="{% static 'routinen/verwaltung.css' %}">{% endblock %}
+{% block inhalt %}{% include "routinen/verwaltung_inhalt.html" %}{% endblock %}
+```
+
 ## `routinen.json`
 
 ```json
-{"routinen": [{"id": "pflanzen", "name": "Pflanzen gießen", "intervall": 4, "toleranz": 1, "zuletzt": "2026-11-17"}]}
+{"routinen": [{"id": "pflanzen", "name": "Pflanzen gießen", "intervall": 4, "toleranz": 1, "zuletzt": "2026-11-17",
+               "beschreibung": "Wohnzimmer und Balkon"}]}
 ```
 
 - Auch von Hand bearbeitbar. `id` darf fehlen (wird aus dem Namen gebildet), `toleranz` auch (0);
   `zuletzt: null` = noch nie erledigt = fällig. Unbekannte Felder bleiben erhalten.
+- `beschreibung` ist optional (Text, höchstens 2000 Zeichen) und wird nur auf der Verwaltungsseite gezeigt und
+  gepflegt. Das Bearbeiten in der Kachel lässt sie unverändert.
 - Gelb ab `intervall` Tagen nach `zuletzt`, rot nach weiteren `toleranz` Tagen.
 - Ist die Datei fehlerhaft, zeigt die Kachel den Fehler und schreibt nichts. Fehlt sie: leere Liste.
 
