@@ -25,7 +25,8 @@
 /* Kopf: Titel mit Statuspunkt, Zähler, Suche und „Neue Routine“ */
 .rv-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding-bottom: 12px; }
 .rv-title { display: flex; align-items: center; gap: 10px; margin: 0; font-size: 22px; font-weight: 600; line-height: 28px; }
-.rv-light { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; background: var(--rv-grey); }
+/* Statuspunkte quadratisch wie in der Kachel – runde sind Healthchecks u. ä. vorbehalten */
+.rv-light { width: 14px; height: 14px; border-radius: 0; flex-shrink: 0; background: var(--rv-grey); }
 .rv-light.is-red { background: var(--rv-red); }
 .rv-light.is-amber { background: var(--rv-amber); }
 .rv-light.is-green { background: var(--rv-green); }
@@ -78,7 +79,7 @@
 .rv-table .is-num { text-align: right; white-space: nowrap; }
 .rv-item.is-current td { background: var(--rv-tint); }
 .rv-state { white-space: nowrap; color: var(--rv-muted); font-size: 13px; }
-.rv-dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 50%; background: var(--rv-grey); }
+.rv-dot { display: inline-block; width: 10px; height: 10px; margin-right: 8px; border-radius: 0; background: var(--rv-grey); }
 .rv-item.is-due .rv-dot { background: var(--rv-amber); }
 .rv-item.is-over .rv-dot { background: var(--rv-red); }
 .rv-item.is-ok .rv-dot { background: var(--rv-green); }

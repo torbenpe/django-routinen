@@ -14,7 +14,7 @@ Keine Datenbank, keine Migrationen, keine Inline-Skripte oder -Styles (läuft mi
 
 ```toml
 # pyproject.toml – Version festnageln; das Archiv braucht kein git im Docker-Image
-dependencies = ["django-routinen @ https://github.com/torbenpe/django-routinen/archive/refs/tags/v0.2.0.tar.gz"]
+dependencies = ["django-routinen @ https://github.com/torbenpe/django-routinen/archive/refs/tags/v0.2.1.tar.gz"]
 ```
 
 ```python

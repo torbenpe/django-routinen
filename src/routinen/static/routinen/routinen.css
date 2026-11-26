@@ -41,7 +41,8 @@
   text-align: left;
   cursor: pointer;
 }
-.rt-light { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; background: var(--rt-grey); }
+/* Statuspunkt quadratisch: runde Punkte sind Healthchecks u. ä. vorbehalten */
+.rt-light { width: 14px; height: 14px; border-radius: 0; flex-shrink: 0; background: var(--rt-grey); }
 .rt-light.is-red { background: var(--rt-red); }
 .rt-light.is-amber { background: var(--rt-amber); }
 .rt-light.is-green { background: var(--rt-green); }
